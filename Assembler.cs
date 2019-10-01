@@ -12,17 +12,16 @@ namespace PRProcSimulator
         private bool containsOrg;
         private bool matches;
         private Dictionary<string, string> grammar;
+        private List<string> labels;
         private List<string> errors;
 
         public Assembler()
         {
             //Define Grammar Rules
             grammar = new Dictionary<string, string>();
-            grammar.Add("[\torg ][0-9]+", "ORG"); //Check for ORG
-            grammar.Add("[a-zA-Z]*[0-9]*[:]", "LABELS"); //Check for LABELS
-            grammar.Add("[a-zA-Z0-9]*[ ]+[db][ ]+[0-9]+||([ ]*[[[ ]*||,]0-9]*)", "LABELSDEF"); //Check for LABELS DEFINITION
             grammar.Add("[const][ ]+[a-zA-Z0-9]+[ ]+[0-9]+", "CONSTANT"); //Check for CONSTANTS
 
+            labels = new List<string>();
             errors = new List<string>();
         }
 
@@ -46,19 +45,27 @@ namespace PRProcSimulator
         }
         public void PrepareInput(ref List<string> code)
         {
-            foreach(string line in code)
-            {
-                foreach(string rule in grammar.Keys)
-                {
-                    if (!Regex.Match(line, rule).Success)
-                    {
-                        string err = "";
-                        grammar.TryGetValue(rule, out err);
-                        err += " grammar error for line: " + line;
-                        errors.Add(err);
-                    }
+            Console.WriteLine(Regex.Match(code.ElementAt(1), "[a-zA-Z0-9]*[ ]+[d][b][ ]+[0-9]+|([ ]*[[[ ]*|,]0-9]*)").Success);
 
-                    
+            foreach (string line in code)
+            {
+                if(Regex.Match(line, "[\torg ][0-9]+").Success && !containsOrg) //Check for ORG
+                {
+                    containsOrg = true;
+                } else if(Regex.Match(line, "[a-zA-Z]*[0-9]*[:]").Success && containsOrg) //Check for LABELS
+                {
+                    int endIndex = line.IndexOf(':');
+                    labels.Add(line.Substring(0, endIndex));
+                } else if(Regex.Match(line, "[a-zA-Z0-9]*[ ]+[db][ ]+[0-9]+|([ ]*[[[ ]*|,]0-9]*)").Success && containsOrg) //Check for LABELSDEF
+                {
+                    labels.Add(line.Split(' ')[0]);
+                } else if(Regex.Match(line, "[const][ ]+[a-zA-Z0-9]+[ ]+[0-9]+").Success && containsOrg) //Check for CONSTANTS
+                {
+                    labels.Add(line.Split(' ')[1]);
+                }
+                else
+                {
+                    errors.Add("Line " + line + " does not match any grammar rule.");
                 }
             }
         }
