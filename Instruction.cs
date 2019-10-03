@@ -18,6 +18,10 @@ namespace PRProcSimulator
         {
             
         }
+        public void assemble() 
+        { 
+
+        }
 
         public override string ToString()
         {
