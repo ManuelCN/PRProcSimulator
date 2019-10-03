@@ -10,7 +10,6 @@ namespace PRProcSimulator
     public class Assembler
     {
         private bool containsOrg;
-        private bool matches;
         private Dictionary<string, string> grammar;
         private List<string> labels;
         private List<string> errors;
