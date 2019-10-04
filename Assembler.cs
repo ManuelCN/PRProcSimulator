@@ -11,13 +11,11 @@ namespace PRProcSimulator
     {
         private bool containsOrg;
         private long index;
-        private List<string> labels;
-        private List<string> errors;
+        private List<string> errors; //TODO: add error checking
         private List<Instruction> instructions;
         private LinkedList<tableItem> table = new LinkedList<tableItem>();
         public Assembler()
         {
-            labels = new List<string>();
             errors = new List<string>();
             instructions = new List<Instruction>();
         }
@@ -42,8 +40,6 @@ namespace PRProcSimulator
         }
         public void PrepareInput(ref List<string> code)
         {
-            Console.WriteLine(Regex.Match(code.ElementAt(1), "[a-zA-Z0-9]*[ ]+[d][b][ ]+[0-9]+|([ ]*[[[ ]*|,]0-9]*)").Success);
-
             foreach (string line in code)
             {
                 string[] parsedLine;
@@ -93,7 +89,7 @@ namespace PRProcSimulator
                     }
                     parsedLine = line.Trim().Split(' ');
                     instructions.Add(new Instruction(parsedLine[0], getOpcode(parsedLine[0]), parsedLine[1]));
-                    int tableIndex = searchInRefTable(parsedLine[0]);
+                    int tableIndex = searchInRefTable(parsedLine[1]);
                     if (tableIndex == -1)
                         table.AddLast(new tableItem(parsedLine[1], "label", -1, null));
                     index++;
@@ -105,8 +101,8 @@ namespace PRProcSimulator
                     {
                         index++;
                     }
-                    parsedLine = line.Trim().Split(' ', ',');
-                    instructions.Add(new Instruction(parsedLine[0], getOpcode(parsedLine[0]), parsedLine[1], parsedLine[2]));
+                    parsedLine = line.Trim().Split(' ');
+                    instructions.Add(new Instruction(parsedLine[0], getOpcode(parsedLine[0]), parsedLine[1].Trim(' ', ','), parsedLine[2].Trim(' ', ',')));
                     int tableIndex = searchInRefTable(parsedLine[2]);
                     if(tableIndex == -1)
                         table.AddLast(new tableItem(parsedLine[2], "label", -1, null));
@@ -120,7 +116,7 @@ namespace PRProcSimulator
                         index++;
                     }
                     parsedLine = line.Trim().Split(' ');
-                    instructions.Add(new Instruction(parsedLine[0], getOpcode(parsedLine[0]), parsedLine[1], parsedLine[2], parsedLine[3]));
+                    instructions.Add(new Instruction(parsedLine[0], getOpcode(parsedLine[0]), parsedLine[1].Trim(' ', ','), parsedLine[2].Trim(' ', ','), parsedLine[3].Trim(' ', ',')));
                     index++;
                 }
                 else
@@ -154,6 +150,11 @@ namespace PRProcSimulator
 
         }
         
+        /// <summary>
+        /// Returns the opcode of the given instruction name
+        /// </summary>
+        /// <param name="instr">The instruction name</param>
+        /// <returns></returns>
         private string getOpcode(string instr)
         {
             switch (instr.ToUpper())
@@ -227,6 +228,11 @@ namespace PRProcSimulator
             }
         }
 
+        /// <summary>
+        /// Searches in reference table for label, variable or constant name. If found, returns index in LinkedList
+        /// </summary>
+        /// <param name="name">The name of the label, variable or constant to search for</param>
+        /// <returns></returns>
         private int searchInRefTable(string name)
         {
             if(table.Count > 0)
