@@ -23,8 +23,10 @@ namespace PRProcSimulator
         {
             Assembler assembly = new Assembler();
             List<string> code;
+            List<Instruction> instructions;
             code = assembly.FilterComments(richTextBox_editor.Text);
-            assembly.PrepareInput(ref code);
+            instructions = assembly.AssemblerPass1(code);
+            assembly.AssemblerPass2(instructions, this.textBox_output.Text);
 
         }
 

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -10,15 +11,9 @@ namespace PRProcSimulator
     public class Assembler
     {
         private bool containsOrg;
-        private long index;
-        private List<string> errors; //TODO: add error checking
-        private List<Instruction> instructions;
+        private int index;
+        private List<string> errors = new List<string>(); //TODO: add error checking
         private LinkedList<tableItem> table = new LinkedList<tableItem>();
-        public Assembler()
-        {
-            errors = new List<string>();
-            instructions = new List<Instruction>();
-        }
 
         public List<string> FilterComments(string input)
         {
@@ -38,15 +33,16 @@ namespace PRProcSimulator
             //Return filtered code
             return result;
         }
-        public void PrepareInput(ref List<string> code)
+        public List<Instruction> AssemblerPass1(List<string> code)
         {
+            List<Instruction> instructions = new List<Instruction>();
             foreach (string line in code)
             {
                 string[] parsedLine;
                 if (Regex.Match(line, "[\torg ][0-9]+").Success && !containsOrg) //Check for ORG
                 {
                     containsOrg = true;
-                    index = long.Parse(line.Split(' ')[1]);
+                    index = int.Parse(line.Split(' ')[1]);
                 }
                 else if (Regex.Match(line, "[a-zA-Z]+[a-zA-Z0-9]*[:]").Success && containsOrg) //Check for LABELS
                 {
@@ -116,7 +112,13 @@ namespace PRProcSimulator
                         index++;
                     }
                     parsedLine = line.Trim().Split(' ');
-                    instructions.Add(new Instruction(parsedLine[0], getOpcode(parsedLine[0]), parsedLine[1].Trim(' ', ','), parsedLine[2].Trim(' ', ','), parsedLine[3].Trim(' ', ',')));
+                    if(parsedLine.Length == 4)
+                    {
+                        instructions.Add(new Instruction(parsedLine[0], getOpcode(parsedLine[0]), parsedLine[1].Trim(' ', ','), parsedLine[2].Trim(' ', ','), parsedLine[3].Trim(' ', ',')));
+                    } else if(parsedLine.Length == 3)
+                    {
+                        instructions.Add(new Instruction(parsedLine[0], getOpcode(parsedLine[0]), parsedLine[1].Trim(' ', ','), parsedLine[2].Trim(' ', ','), ""));
+                    }
                     index++;
                 }
                 else
@@ -124,6 +126,119 @@ namespace PRProcSimulator
                     errors.Add("Line " + line + " does not match any grammar rule.");
                 }
             }
+            return instructions;
+        }
+
+        public void AssemblerPass2(List<Instruction> instructions, string output)
+        {
+            string outputPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + "\\" + output + ".obj";
+            TextWriter docwriter = new StreamWriter(outputPath);
+            if (!File.Exists(outputPath))
+                File.Create(outputPath);
+
+            foreach (Instruction instruction in instructions)
+            {
+                string line = "";
+                line += instruction.opcode;
+                int index = 0;
+                switch (instruction.format)
+                {
+                    case "F1":
+                        line += getRegisterBinary(instruction.registers[0]);
+                        line += getRegisterBinary(instruction.registers[1]);
+                        if (!String.IsNullOrWhiteSpace(instruction.registers[2]))
+                        {
+                            line += getRegisterBinary(instruction.registers[2]);
+                            line += "00";
+                        }
+                        else
+                        {
+                            line += "00000";
+                        }
+                        
+                        break;
+                    case "F2":
+                        line += getRegisterBinary(instruction.registers[0]);
+                        index = searchInRefTable(instruction.const_address);
+                        if(index != -1)
+                        {
+                            int address = table.ElementAt(index).address;
+                            string bin = Convert.ToString(address, 2);
+                            int length = 8 - bin.Length;
+                            if(length > 0)
+                            {
+                                for(int i = 0; i < length; i++)
+                                {
+                                    line += "0";
+                                }
+                                line += bin;
+                            }
+                            else
+                            {
+                                line += bin.Substring(0, 8);
+                            }
+                        }
+                        else
+                        {
+                            if(Regex.Match(instruction.const_address, "[#][A-Z0-9]{2}").Success)
+                            {
+                                char[] digits = instruction.const_address.ToCharArray();
+                                if(digits.Length > 1)
+                                {
+                                    line += getBinary(digits[0]);
+                                    line += getBinary(digits[1]);
+                                }
+                                else
+                                {
+                                    line += "0000" + getBinary(digits[0]);
+                                }
+                            }
+                        }
+                        break;
+                    case "F3":
+                        index = searchInRefTable(instruction.const_address);
+                        if (index != -1)
+                        {
+                            int address = table.ElementAt(index).address;
+                            string bin = Convert.ToString(address, 2);
+                            int length = 11 - bin.Length;
+                            if (length > 0)
+                            {
+                                for (int i = 0; i < length; i++)
+                                {
+                                    line += "0";
+                                }
+                                line += bin;
+                            }
+                            else
+                            {
+                                line += bin.Substring(0, 11);
+                            }
+                        }
+                        else
+                        {
+                            if (Regex.Match(instruction.const_address, "[#][A-Z0-9]{2}").Success)
+                            {
+                                line += "000";
+                                char[] digits = instruction.const_address.ToCharArray();
+                                if (digits.Length > 1)
+                                {
+                                    line += getBinary(digits[0]);
+                                    line += getBinary(digits[1]);
+                                }
+                                else
+                                {
+                                    line += "0000" + getBinary(digits[0]);
+                                }
+                            }
+                        }
+                        break;
+                    default:
+                        break;
+                }
+                docwriter.WriteLine(line);
+            }
+            docwriter.Close();
         }
       
             
@@ -131,11 +246,11 @@ namespace PRProcSimulator
         {
             internal string name;
             internal string type;
-            internal long address;
+            internal int address;
             internal string value;
             
 
-            public tableItem(string name, string type, long address, string value)
+            public tableItem(string name, string type, int address, string value)
             {
                 this.name = name;
                 this.type = type;
@@ -244,6 +359,73 @@ namespace PRProcSimulator
                 }
             }
             return -1;
+        }
+
+        private string getBinary(char hex)
+        {
+            switch (hex)
+            {
+                case '0':
+                    return "0000";
+                case '1':
+                    return "0001";
+                case '2':
+                    return "0010";
+                case '3':
+                    return "0011";
+                case '4':
+                    return "0100";
+                case '5':
+                    return "0101";
+                case '6':
+                    return "0110";
+                case '7':
+                    return "0111";
+                case '8':
+                    return "1000";
+                case '9':
+                    return "1001";
+                case 'A':
+                    return "1010";
+                case 'B':
+                    return "1011";
+                case 'C':
+                    return "1100";
+                case 'D':
+                    return "1101";
+                case 'E':
+                    return "1110";
+                case 'F':
+                    return "1111";
+                default:
+                    return "";
+            }
+        }
+
+        private string getRegisterBinary(string register)
+        {
+            switch (register)
+            {
+                case "R0":
+                    return "000";
+                case "R1":
+                    return "001";
+                case "R2":
+                    return "010";
+                case "R3":
+                    return "011";
+                case "R4":
+                    return "100";
+                case "R5":
+                    return "101";
+                case "R6":
+                    return "110";
+                case "R7":
+                    return "111";
+                default:
+                    return "";
+
+            }
         }
     }
 }
