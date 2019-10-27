@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 
 namespace PRProcSimulator
 {
@@ -35,6 +36,7 @@ namespace PRProcSimulator
         }
         public List<Instruction> AssemblerPass1(List<string> code)
         {
+            int endOfFile = code.Count+1;
             List<Instruction> instructions = new List<Instruction>();
             foreach (string line in code)
             {
@@ -64,7 +66,7 @@ namespace PRProcSimulator
                     //If error == true, report error
                     index++;
                 }
-                else if (Regex.Match(line, "([a-zA-Z0-9]*[ ]+[d][b][ ]+[)|([0-9]+([ ]*,[ ]*[0-9]+)*)").Success && containsOrg) //Check for LABELSDEF
+                else if (Regex.Match(line, "[a-zA-Z0-9]*[ ]+[d][b][ ]+[)|([0-9]+([ ]*,[ ]*[0-9]+)*").Success && containsOrg) //Check for LABELSDEF
                 {
                     parsedLine = line.Split(' ');
                     table.AddLast(new tableItem(parsedLine[0], "var", index, null));
@@ -92,7 +94,7 @@ namespace PRProcSimulator
                 }
                 else if (Regex.Match(line, "((LOAD)|(LOADIM)|(POP)|(STORE)|(PUSH)|(ADDIM)|(SUBIM)|(LOOP))([ ]*[a-zA-Z0-9]+([ ]*[,][ ]*[a-zA-Z0-9]+)*)").Success && containsOrg)
                 {
-                    //The following instrucctionsare in F2 format 
+                    //The following instrucctions are in F2 format 
                     if (int.Parse(index.ToString()) % 2 != 0)
                     {
                         index++;
@@ -104,6 +106,7 @@ namespace PRProcSimulator
                         table.AddLast(new tableItem(parsedLine[2], "label", -1, null));
                     index++;
                 }
+             
                 else if (Regex.Match(line,"((LOADRIND)|(STORERIND)|(ADD)|(SUV)|(AND)|(OR)|(XOR)|(NOT)|(NEG)|(SHIFTR)|(SHIFTL)|(ROTAR)|(ROTAL)|(JUMPIND)|(GRT)|(GRTEQ)|(EQ)|(NEQ)|(NOP))([ ]*[a-zA-Z0-9]+([ ]*[,][ ]*[a-zA-Z0-9]+)*)").Success && containsOrg)
                 {
                     //The following instrucctionsare in F1 format 
@@ -121,10 +124,21 @@ namespace PRProcSimulator
                     }
                     index++;
                 }
+                else if(index == endOfFile)
+                {
+                    // Do Nothing
+                }
                 else
                 {
-                    errors.Add("Line " + line + " does not match any grammar rule.");
+                    //int lineNumber = index + 1;   
+                    errors.Add("Line " + index + " does not match any grammar rule.");
+                    index++;
                 }
+            }
+
+            if(errors.Count != 0)
+            {
+                DisplayErrorBox(errors);
             }
             return instructions;
         }
@@ -236,6 +250,19 @@ namespace PRProcSimulator
                     default:
                         break;
                 }
+                string num1 = line.Substring(0,8);
+                string num2 = line.Substring(8);
+                num1 = Convert.ToInt32(num1,2).ToString("X");
+                num2 = Convert.ToInt32(num2,2).ToString("X");
+                if(num1.Length == 1)
+                {
+                    num1 = "0" +num1;
+                }
+                if(num2.Length == 1)
+                {
+                    num2 = "0" +num2;
+                }
+                line = num1 + num2;
                 docwriter.WriteLine(line);
             }
             docwriter.Close();
@@ -426,6 +453,23 @@ namespace PRProcSimulator
                     return "";
 
             }
+        }
+
+        public void DisplayErrorBox(List<String> errors)   
+        {
+            string message = String.Join("\n", errors.ToArray());
+            string title = "Error";
+            MessageBoxButtons buttons = MessageBoxButtons.AbortRetryIgnore;
+            DialogResult result = MessageBox.Show(message,title,buttons,MessageBoxIcon.Error);
+
+            if(result == DialogResult.Abort)
+            {
+                Application.Exit();
+            }
+            else if(result == DialogResult.Retry)
+                {
+                  
+                }
         }
     }
 }

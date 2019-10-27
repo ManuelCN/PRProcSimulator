@@ -9,14 +9,31 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Text.RegularExpressions;
 using System.IO;
+using System.Timers;
+
 
 namespace PRProcSimulator
 {
+    
+
     public partial class Form_Main : Form
     {
+        List<string> reserved = new List<string>(){"ORG","DB","CONST","JMPADDR","JCONDRIN","JCONDADDR","LOAD","LOADIM","POP","STORE"
+                            ,"PUSH","ADDIM","SUBIM","LOOP","LOADRIND","STORERIND","ADD","SUV","AND","OR","XOR"
+                            ,"NOT","NEG","SHIFTR","SHIFTL","ROTAR","ROTAL","JUMPIND","GRT","GRTEQ","EQ","NEQ","NOP"};
+    
+       
+        System.Windows.Forms.Timer timer;
+
         public Form_Main()
         {
             InitializeComponent();
+            timer = new System.Windows.Forms.Timer();
+            timer.Interval = 10000;
+            timer.Tick += new EventHandler(HighlightKeyWords);
+            timer.Enabled = true;
+            
+
         }
 
         private void Button_Assemble_Click(object sender, EventArgs e)
@@ -38,6 +55,27 @@ namespace PRProcSimulator
                 this.richTextBox_editor.Text = File.ReadAllText(importDialog.FileName);
                 this.textBox_output.Text = importDialog.FileName.Split('\\').Last().Replace(".txt", "");
             }
+        }
+
+        private void HighlightKeyWords(object sender, EventArgs e)
+        {
+            
+            int index;
+            int pointer;
+            
+     
+            foreach(string word in reserved)
+            {
+                index = 0;
+                pointer = 0;
+                while((index = richTextBox_editor.Find(word, pointer, RichTextBoxFinds.MatchCase)) != -1 )
+                {
+            
+                    richTextBox_editor.SelectionColor = Color.MediumPurple;
+                    pointer += word.Length;
+                }
+            }
+
         }
     }
 }
